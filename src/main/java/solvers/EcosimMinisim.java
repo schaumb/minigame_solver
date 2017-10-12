@@ -27,11 +27,11 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         By restart = By.id("restart-game");
         Function<SearchContext, Integer> calculatePoint = null;
 
-        if (url.contains("logisztika")) {
-
+        if (url.contains("logisztika") || url.contains("minijatek")) {
+            boolean insu = url.contains("insurace.hu");
             calculatePoint = context -> {
                 List<Integer> collect = context.findElements(By.className("kpi-circle")).stream().map(e -> Integer.parseInt(e.getAttribute("data-pct"))).collect(Collectors.toList());
-                return collect.get(0) + collect.get(1) * 2 + collect.get(2);
+                return (insu ? 2 : 1) * (collect.get(0) + collect.get(1) * 2) + collect.get(2);
             };
         } else if (url.contains("minisim")) {
             final boolean dmb = url.contains("diakverseny");
