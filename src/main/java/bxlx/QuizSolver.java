@@ -27,7 +27,7 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
         if (url.endsWith("nng.com")) {
             return new NNGProgQuizSolver(url);
         }
-        if (url.contains("ecosim.hu")) {
+        if (url.contains("ecosim.hu") || url.contains("diakverseny.hu")) {
             return new EcosimMinisim(url);
         }
         throw new UnsupportedOperationException("No matching quiz solver for url: " + url);

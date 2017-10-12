@@ -20,29 +20,32 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
     private Map.Entry<String, GraphNode> prevEntry;
     private int prevPoint;
     private boolean knowEverything;
+    private boolean firstStart = true;
 
     public EcosimMinisim(String url) {
         super(url);
-        By restart = null;
+        By restart = By.id("restart-game");
         Function<SearchContext, Integer> calculatePoint = null;
+
         if (url.contains("logisztika")) {
-            restart = By.id("restart-game");
+
             calculatePoint = context -> {
                 List<Integer> collect = context.findElements(By.className("kpi-circle")).stream().map(e -> Integer.parseInt(e.getAttribute("data-pct"))).collect(Collectors.toList());
                 return collect.get(0) + collect.get(1) * 2 + collect.get(2);
             };
-        }
-        if (url.contains("minisim")) {
-            restart = By.name("play-again");
-            calculatePoint = context -> {
+        } else if (url.contains("minisim")) {
+            final boolean dmb = url.contains("diakverseny");
+            if (!dmb)
+                restart = By.name("play-again");
 
-                List<String> collect = context.findElements(By.className("xs-chart")).stream().limit(3).map(e -> e.findElement(By.className("value")).getAttribute("innerHTML")).collect(Collectors.toList());
+            calculatePoint = context -> {
+                List<String> collect = context.findElements(By.className("xs-chart")).stream().filter(WebElement::isDisplayed).limit(3).map(e -> e.findElement(By.tagName("span")).getAttribute("innerHTML")).collect(Collectors.toList());
 
                 if (collect.size() < 3) {
                     collect = context.findElements(By.className("circle")).stream().limit(3).map(e -> e.getAttribute("innerHTML")).collect(Collectors.toList());
                 }
 
-                return Integer.parseInt(collect.get(0)) + Integer.parseInt(collect.get(1)) * 20 + Integer.parseInt(collect.get(2));
+                return Math.round(Float.parseFloat(collect.get(0)) * 10 + Float.parseFloat(collect.get(1)) * (dmb ? 0 : 200) + Float.parseFloat(collect.get(2)) * 10);
             };
         }
 
@@ -53,6 +56,14 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
 
     @Override
     public State getStateFromContext(SearchContext context) {
+        if (firstStart) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException ignored) {
+            }
+            firstStart = false;
+        }
+
         List<WebElement> startGames = context.findElements(By.id("start-game"));
         if (startGames.size() > 0 && startGames.get(0).isDisplayed())
             return State.START;
@@ -74,11 +85,23 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
 
     @Override
     public ExpectedCondition<?> handleStart(SearchContext context) {
-        context.findElement(By.id("start-game")).click();
         startNode = null;
         prevEntry = null;
         prevPoint = -1;
         knowEverything = true;
+
+        List<WebElement> teamname = context.findElements(By.name("teamname"));
+        if (teamname.size() > 0 && teamname.get(0).getAttribute("value").isEmpty()) {
+            String uuid = UUID.randomUUID().toString().replaceAll("-", "");
+            teamname.get(0).sendKeys(uuid);
+
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException ignored) {
+            }
+        }
+
+        context.findElement(By.id("start-game")).click();
 
         try {
             Thread.sleep(2000);
@@ -103,15 +126,31 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
             prevEntry.setValue(new GraphNode(question, nowPoint - prevPoint));
         } else if (prevEntry.getValue().getPointGrow() != nowPoint - prevPoint) {
             // synchronizing problem.
-            prevEntry.setValue(null);
-            System.err.println("Synchronizing problem :(");
-            context.findElement(By.className("fa-refresh")).click();
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ignored) {
-            }
+            System.err.println("Synchronizing problem :( Prev add: " + prevEntry.getValue().getPointGrow() + ", now: " + (nowPoint - prevPoint));
+            List<WebElement> elements = context.findElements(By.className("fa-refresh"));
+            if (elements.size() > 0 && elements.get(0).isDisplayed()) {
+                prevEntry.setValue(null);
 
-            return ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(By.id("start-game")));
+                elements.get(0).click();
+
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {
+                }
+
+                return ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(By.id("start-game")));
+            } else {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {
+                }
+                int otherNowPoint = calculatePoint.apply(context);
+                if (otherNowPoint != nowPoint) {
+                    return handleStart(context);
+                }
+
+                prevEntry.setValue(new GraphNode(prevEntry.getValue().getNextQuestion(), otherNowPoint - prevPoint));
+            }
         }
 
         List<WebElement> answers = context.findElements(By.className("answer"));
@@ -124,6 +163,9 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
             answersStr.forEach(s -> map.put(s, null));
             return map;
         });
+        if (question.equals("Sajnáljuk, hogy el akarsz menni, pedig úgy láttuk, jól csináltad! Nem próbálod meg a következő szezont?")) {
+            results.get(question).entrySet().forEach(e -> e.setValue(new GraphNode(null, 0)));
+        }
 
         String calculatedNext = getNextNode(question);
 
@@ -180,6 +222,8 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
                             .map(Map.Entry::getKey)
                             .findFirst().orElse(null);
 
+                    System.err.println("To dest: \"" + question.substring(0, 10) + "...\" answer: \"" + (to == null ? null : to.substring(0, 10)) + "...\"");
+
                     if (to == null) {
                         throw new IllegalArgumentException("Logical issue nextNode parents");
                     }
@@ -217,11 +261,21 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         if (!knowEverything) {
             context.findElement(restart).click();
         }
+
+        startNode = null;
+        prevEntry = null;
+        prevPoint = -1;
+        knowEverything = true;
+
         try {
             Thread.sleep(2000);
         } catch (InterruptedException ignored) {
         }
-        return ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(By.id("start-game")));
+        return ExpectedConditions.or(
+                ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(By.id("start-game"))),
+                ExpectedConditions.and(
+                        ExpectedConditions.invisibilityOfElementLocated(By.id("start-game")),
+                        ExpectedConditions.numberOfElementsToBeMoreThan(By.className("answer"), 0)));
     }
 
     static class GraphNode implements Serializable {
