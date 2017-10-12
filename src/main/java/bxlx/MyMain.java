@@ -1,6 +1,7 @@
 package bxlx;
 
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.Wait;
@@ -47,13 +48,11 @@ public class MyMain {
                     break;
                 }
             }
-        } catch (Throwable e) {
-            e.printStackTrace(System.err);
+        } catch (WebDriverException ignored) {
         } finally {
             try {
                 driver.close();
-            } catch (Throwable e) {
-                e.printStackTrace(System.err);
+            } catch (Throwable ignored) {
             }
         }
     }

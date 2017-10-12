@@ -11,8 +11,8 @@ import java.util.HashMap;
 import java.util.stream.Collectors;
 
 public abstract class QuizSolver<Element extends Serializable> implements Closeable {
-    private final File file;
     protected final HashMap<String, HashMap<String, Element>> results;
+    private final File file;
 
     protected QuizSolver(String url) {
         file = new File(Base64.getEncoder().encodeToString(url.getBytes()).replaceFirst("=+", "") + ".txt");
@@ -23,7 +23,7 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
         if (url.endsWith("/mini/")) {
             return new EcosimProgQuizSolver(url);
         }
-        if(url.endsWith("nng.com")) {
+        if (url.endsWith("nng.com")) {
             return new NNGProgQuizSolver(url);
         }
         throw new UnsupportedOperationException("No matching quiz solver for url: " + url);
@@ -43,7 +43,7 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
 
     @Override
     public void close() {
-        if(results.isEmpty())
+        if (results.isEmpty())
             return;
 
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
