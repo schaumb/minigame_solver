@@ -39,6 +39,7 @@ public class EcosimProgQuizSolver extends QuizSolver<Boolean> {
     public ExpectedCondition<Boolean> handleStart(SearchContext context) {
         context.findElement(By.id("start-game")).click();
         howManyWasBad = 0;
+        howManyWasNew = 0;
         howManyQuestionWas = 0;
         handledResults = false;
         return ExpectedConditions.not(ExpectedConditions.visibilityOfElementLocated(By.id("start-game")));
