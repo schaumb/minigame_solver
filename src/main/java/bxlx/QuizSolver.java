@@ -3,6 +3,7 @@ package bxlx;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import solvers.EcosimProgQuizSolver;
+import solvers.NNGProgQuizSolver;
 
 import java.io.*;
 import java.util.Base64;
@@ -22,6 +23,9 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
         if (url.endsWith("/mini/")) {
             return new EcosimProgQuizSolver(url);
         }
+        if(url.endsWith("nng.com")) {
+            return new NNGProgQuizSolver(url);
+        }
         throw new UnsupportedOperationException("No matching quiz solver for url: " + url);
     }
 
@@ -39,6 +43,9 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
 
     @Override
     public void close() {
+        if(results.isEmpty())
+            return;
+
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(file))) {
             oos.writeObject(results);
         } catch (IOException e) {
@@ -60,7 +67,8 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
 
     @Override
     public String toString() {
-        return new String(Base64.getDecoder().decode(file.getName().substring(0, file.getName().length() - 4))) + "\n" +
+        return file.getName() + "\n" +
+                new String(Base64.getDecoder().decode(file.getName().substring(0, file.getName().length() - 4))) + "\n" +
                 results.entrySet().stream().map(e ->
                         "Question: " + e.getKey() + "\n" +
                                 e.getValue().entrySet().stream().map(e2 ->
