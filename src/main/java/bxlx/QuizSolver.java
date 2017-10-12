@@ -2,6 +2,7 @@ package bxlx;
 
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.support.ui.ExpectedCondition;
+import solvers.EcosimMinisim;
 import solvers.EcosimProgQuizSolver;
 import solvers.NNGProgQuizSolver;
 
@@ -25,6 +26,9 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
         }
         if (url.endsWith("nng.com")) {
             return new NNGProgQuizSolver(url);
+        }
+        if (url.contains("ecosim.hu")) {
+            return new EcosimMinisim(url);
         }
         throw new UnsupportedOperationException("No matching quiz solver for url: " + url);
     }

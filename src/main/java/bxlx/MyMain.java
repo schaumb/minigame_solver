@@ -51,6 +51,7 @@ public class MyMain {
         } catch (WebDriverException ignored) {
         } finally {
             try {
+                driver.quit();
                 driver.close();
             } catch (Throwable ignored) {
             }
