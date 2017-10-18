@@ -45,7 +45,7 @@
                     <downloadedZipFileDirectory>target</downloadedZipFileDirectory>
                     <customRepositoryMap>https://raw.githubusercontent.com/Ardesco/selenium-standalone-server-plugin/02f8074ee7a5a0adcd11106519890d0cabcbc33f/src/main/resources/RepositoryMap.xml</customRepositoryMap>
                     <getSpecificExecutableVersions>
-                        <marionette>0.18.0</marionette>
+                        <googlechrome>2.32</googlechrome>
                     </getSpecificExecutableVersions>
                     <throwExceptionIfSpecifiedVersionIsNotFound>true</throwExceptionIfSpecifiedVersionIsNotFound>
                 </configuration>

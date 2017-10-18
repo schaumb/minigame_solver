@@ -2,7 +2,7 @@ package bxlx;
 
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -16,7 +16,7 @@ public class MyMain {
 
         String url = args.length > 0 ? args[0] : "https://www.javachallenge.hu/mini/";
 
-        FirefoxDriver driver = new FirefoxDriver();
+        ChromeDriver driver = new ChromeDriver();
         try (QuizSolver<?> quizSolver = QuizSolver.findQuizSolverByUrl(url)) {
             Wait<WebDriver> wait = new WebDriverWait(driver, 10000, 0);
 
@@ -68,6 +68,6 @@ public class MyMain {
             }
             driverPath = files[0];
         }
-        System.setProperty("webdriver.gecko.driver", driverPath.getPath());
+        System.setProperty("webdriver.chrome.driver", driverPath.getPath());
     }
 }

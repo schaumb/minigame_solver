@@ -5,6 +5,7 @@ import org.openqa.selenium.support.ui.ExpectedCondition;
 import solvers.EcosimMinisim;
 import solvers.EcosimProgQuizSolver;
 import solvers.NNGProgQuizSolver;
+import solvers.RedBullClickSolver;
 
 import java.io.*;
 import java.util.Base64;
@@ -29,6 +30,9 @@ public abstract class QuizSolver<Element extends Serializable> implements Closea
         }
         if (url.contains("ecosim.hu") || url.contains("diakverseny.hu") || url.contains("insurace.hu")) {
             return new EcosimMinisim(url);
+        }
+        if(url.contains("redbull.com")) {
+            return new RedBullClickSolver(url);
         }
         throw new UnsupportedOperationException("No matching quiz solver for url: " + url);
     }
