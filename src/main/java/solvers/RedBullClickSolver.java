@@ -69,9 +69,18 @@ public class RedBullClickSolver extends QuizSolver {
         for (WebElement webElement : context.findElements(By.className("score-value-digit"))) {
             score = score * 10 + Integer.parseInt(webElement.getAttribute("innerHTML"));
         }
-        if(score < 1354) {
+        if(score < 2312) {
             System.err.println("Pont: " + score);
             context.findElement(By.className("game-over-retry")).click();
+        } else {
+            try {
+                Object obj = new Object();
+                synchronized (obj) {
+                    obj.wait();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         return ExpectedConditions.or(
