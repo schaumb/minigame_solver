@@ -27,10 +27,14 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         By restart = By.id("restart-game");
         Function<SearchContext, Integer> calculatePoint = null;
 
-        if (url.contains("logisztika") || url.contains("minijatek")) {
+        if (url.contains("logisztika") || url.contains("minijatek") || url.contains("mikulas")) {
             boolean insu = url.contains("insurace.hu");
+            boolean miki = url.contains("mikulas");
             calculatePoint = context -> {
                 List<Integer> collect = context.findElements(By.className("kpi-circle")).stream().map(e -> Integer.parseInt(e.getAttribute("data-pct"))).collect(Collectors.toList());
+                if(miki) {
+                    return -1 * collect.get(0) + 3 * collect.get(1) + 2 * collect.get(2);
+                }
                 return (insu ? 2 : 1) * (collect.get(0) + collect.get(1) * 2) + collect.get(2);
             };
         } else if (url.contains("minisim")) {
