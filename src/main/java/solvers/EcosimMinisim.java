@@ -6,9 +6,11 @@ import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -16,6 +18,8 @@ import java.util.stream.IntStream;
 public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
     private final Function<SearchContext, Integer> calculatePoint;
     private final By restart;
+    private final By startGame;
+    private final By question;
     private String startNode;
     private Map.Entry<String, GraphNode> prevEntry;
     private int prevPoint;
@@ -25,18 +29,26 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
     public EcosimMinisim(String url) {
         super(url);
         By restart = By.id("restart-game");
+        By startGame = By.id("start-game");
+        By question = By.id("question-text");
         Function<SearchContext, Integer> calculatePoint = null;
 
-        if (url.contains("logisztika") || url.contains("minijatek") || url.contains("mikulas")) {
+        boolean kari = url.contains("karacsonyi_jatek_2019");
+        boolean miki = url.contains("mikulas");
+        if (url.contains("logisztika") || url.contains("minijatek") || miki || kari) {
             boolean insu = url.contains("insurace.hu");
-            boolean miki = url.contains("mikulas");
             calculatePoint = context -> {
                 List<Integer> collect = context.findElements(By.className("kpi-circle")).stream().map(e -> Integer.parseInt(e.getAttribute("data-pct"))).collect(Collectors.toList());
-                if(miki) {
-                    return -1 * collect.get(0) + 3 * collect.get(1) + 2 * collect.get(2);
+                if(miki || kari) {
+                    return (miki ? -1 : 1) * collect.get(0) + 3 * collect.get(1) + 2 * collect.get(2);
                 }
                 return (insu ? 2 : 1) * (collect.get(0) + collect.get(1) * 2) + collect.get(2);
             };
+            if (kari) {
+                restart = By.id("endReStartGameBtn");
+                startGame = By.id("startGameBtn");
+                question = By.id("question");
+            }
         } else if (url.contains("minisim")) {
             final boolean dmb = url.contains("diakverseny");
             if (!dmb)
@@ -55,6 +67,8 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
 
 
         this.restart = restart;
+        this.startGame = startGame;
+        this.question = question;
         this.calculatePoint = calculatePoint;
     }
 
@@ -68,7 +82,7 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
             firstStart = false;
         }
 
-        List<WebElement> startGames = context.findElements(By.id("start-game"));
+        List<WebElement> startGames = context.findElements(startGame);
         if (startGames.size() > 0 && startGames.get(0).isDisplayed())
             return State.START;
         List<WebElement> question = context.findElements(By.className("answer"));
@@ -94,18 +108,22 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         prevPoint = -1;
         knowEverything = true;
 
-        List<WebElement> teamname = context.findElements(By.name("teamname"));
-        if (teamname.size() > 0 && teamname.get(0).getAttribute("value").isEmpty()) {
-            String uuid = UUID.randomUUID().toString().replaceAll("-", "");
-            teamname.get(0).sendKeys(uuid);
+        for (String byName : Arrays.asList("teamname", "company", "nickname")) {
+            List<WebElement> teamnames = context.findElements(By.name(byName));
+            for (WebElement teamname : teamnames) {
+                if (!teamname.isDisplayed())
+                    continue;
+                String uuid = UUID.randomUUID().toString().replaceAll("-", "");
+                teamname.sendKeys(uuid);
 
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ignored) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {
+                }
             }
         }
 
-        context.findElement(By.id("start-game")).click();
+        context.findElement(startGame).click();
 
         try {
             Thread.sleep(2000);
@@ -113,13 +131,13 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         }
 
         return ExpectedConditions.and(
-                ExpectedConditions.invisibilityOfElementLocated(By.id("start-game")),
+                ExpectedConditions.invisibilityOfElementLocated(startGame),
                 ExpectedConditions.numberOfElementsToBeMoreThan(By.className("answer"), 0));
     }
 
     @Override
     public ExpectedCondition<?> handleQuestion(SearchContext context) {
-        String question = context.findElement(By.id("question-text")).getAttribute("innerHTML");
+        String question = context.findElement(this.question).getAttribute("innerHTML");
 
         // calculate point
         int nowPoint = calculatePoint.apply(context);
@@ -142,7 +160,7 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
                 } catch (InterruptedException ignored) {
                 }
 
-                return ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(By.id("start-game")));
+                return ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(startGame));
             } else {
                 try {
                     Thread.sleep(2000);
@@ -156,9 +174,34 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
                 prevEntry.setValue(new GraphNode(prevEntry.getValue().getNextQuestion(), otherNowPoint - prevPoint));
             }
         }
+        List<WebElement> elements = context.findElements(By.xpath("//div[starts-with(@id,'answerSelectBlock_')]")).stream().filter(WebElement::isDisplayed).collect(Collectors.toList());
 
-        List<WebElement> answers = context.findElements(By.className("answer"));
-        List<String> answersStr = answers.stream().filter(WebElement::isDisplayed).map(e -> e.findElement(By.className("answer-text")).getAttribute("innerHTML")).collect(Collectors.toList());
+        boolean selector = !elements.isEmpty();
+        List<WebElement> answers;
+        List<String> answersStr;
+        if (selector) {
+            // some new stuff ->
+            answersStr = new ArrayList<>();
+            // tfh...
+            List<String> id = elements.stream().map(e -> e.findElement(By.tagName("p")).getText()).collect(Collectors.toList());
+            new PermutationGenerator<>(elements.get(0).findElements(By.tagName("option")).stream().map(e -> Integer.parseInt(e.getAttribute("value"))).filter(i -> i != 0).collect(Collectors.toList())).GetAll()
+                    .forEach(s -> {
+                Map<String, Integer> oneSelection = new HashMap<>();
+                s.forEach(new Consumer<>() {
+                    int index = 0;
+                    @Override
+                    public void accept(Integer integer) {
+                        oneSelection.put(id.get(index++), integer);
+                    }
+                });
+                answersStr.add(oneSelection.entrySet().stream().map(e-> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("|")));
+            });
+
+            answers = elements;
+        } else {
+            answers = context.findElements(By.className("answer"));
+            answersStr = answers.stream().filter(WebElement::isDisplayed).map(e -> e.findElement(By.className("answer-text")).getAttribute("innerHTML")).collect(Collectors.toList());
+        }
 
 
         results.computeIfAbsent(question, q -> {
@@ -177,22 +220,35 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
             throw new IllegalArgumentException("Logical issue!! getNextNode :(");
         }
 
-        IntStream.range(0, answers.size()).filter(i -> answersStr.get(i).equals(calculatedNext)).mapToObj(answers::get)
-                .findFirst().ifPresent(w -> {
-            prevEntry = results.get(question).entrySet().stream().filter(e -> e.getKey().equals(calculatedNext)).findFirst().orElse(null);
-            if (prevEntry == null) {
-                throw new IllegalArgumentException("Logical issue!! null entry :(");
+        prevEntry = results.get(question).entrySet().stream().filter(e -> e.getKey().equals(calculatedNext)).findFirst().orElse(null);
+        if (prevEntry == null) {
+            throw new IllegalArgumentException("Logical issue!! null entry :(");
+        }
+        if (selector) {
+            Map<String, Integer> collect = Arrays.stream(calculatedNext.split("\\|")).map(s -> s.split("=")).collect(Collectors.toMap(s -> s[0], s -> Integer.parseInt(s[1])));
+            System.err.println("Selected: " + collect);
+            for (WebElement element : elements) {
+                Integer p = collect.get(element.findElement(By.tagName("p")).getText());
+                new Select(element.findElement(By.tagName("select"))).selectByValue(p.toString());
             }
-            w.click();
-        });
+        } else {
+            IntStream.range(0, answers.size()).filter(i -> answersStr.get(i).equals(calculatedNext)).mapToObj(answers::get)
+                    .findFirst().ifPresent(WebElement::click);
+        }
         prevPoint = nowPoint;
+
+        for (WebElement sab : context.findElements(By.id("submitAnswerBtn"))) {
+            if (sab.isDisplayed())
+                sab.click();
+        }
+
         try {
             Thread.sleep(2000);
         } catch (InterruptedException ignored) {
         }
 
         return ExpectedConditions.or(
-                ExpectedConditions.not(ExpectedConditions.attributeToBe(By.id("question-text"), "innerHTML", question)),
+                ExpectedConditions.not(ExpectedConditions.attributeToBe(this.question, "innerHTML", question)),
                 ExpectedConditions.numberOfElementsToBeMoreThan(restart, 0));
     }
 
@@ -207,7 +263,7 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
             if (results.get(queue.peek()) == null) {
                 System.err.println("WTF");
             }
-            String nextCheck = queue.poll();
+            String nextCheck = queue.remove();
             for (Map.Entry<String, GraphNode> e : results.get(nextCheck).entrySet()) {
                 if (e.getValue() == null) {
                     knowEverything = false;
@@ -248,7 +304,7 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         if (question == null)
             return 0;
 
-        return results.get(question).entrySet().stream().mapToInt(e -> e.getValue().getPointGrow() + weight(e.getValue().getNextQuestion())).max().orElse(0);
+        return results.get(question).values().stream().mapToInt(graphNode -> graphNode.getPointGrow() + weight(graphNode.getNextQuestion())).max().orElse(0);
     }
 
     @Override
@@ -276,9 +332,9 @@ public class EcosimMinisim extends QuizSolver<EcosimMinisim.GraphNode> {
         } catch (InterruptedException ignored) {
         }
         return ExpectedConditions.or(
-                ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(By.id("start-game"))),
+                ExpectedConditions.and(ExpectedConditions.visibilityOfElementLocated(startGame)),
                 ExpectedConditions.and(
-                        ExpectedConditions.invisibilityOfElementLocated(By.id("start-game")),
+                        ExpectedConditions.invisibilityOfElementLocated(startGame),
                         ExpectedConditions.numberOfElementsToBeMoreThan(By.className("answer"), 0)));
     }
 

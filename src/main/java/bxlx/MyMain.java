@@ -8,17 +8,17 @@ import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.File;
-import java.io.IOException;
+import java.time.Duration;
 
 public class MyMain {
-    public static void main(String... args) throws IOException {
+    public static void main(String... args) {
         setDriver();
 
         String url = args.length > 0 ? args[0] : "https://www.javachallenge.hu/mini/";
 
         ChromeDriver driver = new ChromeDriver();
         try (QuizSolver<?> quizSolver = QuizSolver.findQuizSolverByUrl(url)) {
-            Wait<WebDriver> wait = new WebDriverWait(driver, 10000, 0);
+            Wait<WebDriver> wait = new WebDriverWait(driver, Duration.ofSeconds(10000), Duration.ofMillis(0));
 
             driver.get(url);
 
@@ -48,7 +48,8 @@ public class MyMain {
                     break;
                 }
             }
-        } catch (WebDriverException ignored) {
+        } catch (WebDriverException e) {
+            e.printStackTrace();
         } finally {
             try {
                 driver.quit();
